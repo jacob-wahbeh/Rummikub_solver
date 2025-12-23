@@ -22,6 +22,11 @@ export class Board {
         return this.melds.every(m => m.validate());
     }
 
+    // Helper to get all tiles
+    getAllTiles(): import('./Tile').Tile[] {
+        return this.melds.flatMap(m => m.getTiles());
+    }
+
     // Get total point value of tiles on board (not usually needed for gameplay, but maybe for stats)
     getTotalValue(): number {
         return 0; // TODO if needed

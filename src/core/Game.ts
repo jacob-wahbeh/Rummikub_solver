@@ -10,6 +10,8 @@ export class Game {
     public currentPlayerIndex: number;
     public isGameOver: boolean;
     public winner: Player | null;
+    // Track drawn tile IDs per player - persists until their next turn
+    public drawnTileIdsByPlayer: Map<string, string[]> = new Map();
 
     constructor(players: Player[]) {
         this.players = players;
@@ -18,6 +20,7 @@ export class Game {
         this.currentPlayerIndex = 0;
         this.isGameOver = false;
         this.winner = null;
+        this.drawnTileIdsByPlayer = new Map();
     }
 
     private initializeDeck(): Tile[] {
@@ -72,6 +75,10 @@ export class Game {
 
         const player = this.players[this.currentPlayerIndex];
 
+        // Clear this player's drawn tiles at the START of their turn
+        // (so highlights persist through opponents' turns)
+        this.drawnTileIdsByPlayer.set(player.id, []);
+
         // Ask player for their move
         // We clone the board so they can't mutate the real game state directly without return
         const boardSnapshot = this.board.clone();
@@ -81,7 +88,8 @@ export class Game {
         if (result.action === 'DRAW') {
             const drawn = this.drawTiles(1);
             player.addTiles(drawn);
-            // console.log(`${player.name} drew a tile.`);
+            // Track drawn tile IDs for this player
+            this.drawnTileIdsByPlayer.set(player.id, drawn.map(t => t.id));
         } else if (result.action === 'PLAY' && result.newBoard) {
             // Validate the move
             if (this.validateMove(player, this.board, result.newBoard, result.tilesPlayed || [])) {
@@ -100,20 +108,14 @@ export class Game {
                 if (player.hand.length === 0) {
                     this.isGameOver = true;
                     this.winner = player;
-                    // console.log(`${player.name} wins!`);
                 }
 
             } else {
-                // Invalid move penalty? usually draw 3 tiles.
-                // For simulation, we might force a draw or disqualify.
-                // Let's force a draw for now.
-                // console.log(`${player.name} made an invalid move. Penalty: Draw 3.`);
-                // In strict rules, if you manipulate board and can't finish, you take back tiles + penalty.
-                // Here we assume strategy handles it or we revert.
-                // Revert is implicit because we didn't assign `this.board = result.newBoard` yet.
-
+                // Invalid move penalty: draw 3 tiles
                 const penalty = this.drawTiles(3);
                 player.addTiles(penalty);
+                // Track penalty drawn tiles for this player
+                this.drawnTileIdsByPlayer.set(player.id, penalty.map(t => t.id));
             }
         }
 
